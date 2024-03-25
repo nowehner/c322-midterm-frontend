@@ -20,14 +20,13 @@
 
   <script>
    
-    let host = "http://localhost:8080";
+    let host = "https://midterm-nowehner.onrender.com";
     let questions = [];
     let currentQuestionIndex = 0;
     let quizQuestions = [];
     let quizId;
     let answers = {};
-
-  
+    let correctAnswers = {};
 
     document.addEventListener('DOMContentLoaded', function() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -71,11 +70,11 @@
       div.className = "card";
 
       let innerHtml = `
-        <img src="http://localhost:8080/questions/${currentQuestion.id}/image" alt="question" style="width:100%">
+        <img src="https://midterm-nowehner.onrender.com/questions/${currentQuestion.id}/image" alt="question" style="width:100%">
         <div class="container">
           <h4><b>${currentQuestion.id}</b></h4> 
           <p>${currentQuestion.description}</p>
-          <form id = "questionForm">
+          <form id="questionForm">
             <input type="radio" id="q${currentQuestion.id}ptionA" name="q2Answer" value="A">
             <label for="q${currentQuestion.id}ptionA">${currentQuestion.choices[0]}</label><br>
 
@@ -107,16 +106,23 @@
       saveAnswer();
       currentQuestionIndex--;
       displayQuestion(quizId);
+      console.log("Answers:", answers);
     });
 
     document.getElementById("nextButton").addEventListener("click", function() {
       saveAnswer();
       currentQuestionIndex++;
       displayQuestion(quizId);
+      console.log("Answers:", answers);
     });
 
     document.getElementById("submitButton").addEventListener("click", function() {
+      saveAnswer();
       console.log("Quiz submitted!");
+      calculateScore().then(score => {
+        clearQuiz();
+        displayScore(score);
+      });
     });
 
     function saveAnswer() {
@@ -124,8 +130,9 @@
       const selectedAnswer = form.querySelector('input[name="q2Answer"]:checked');
       if (selectedAnswer) {
         const questionId = selectedAnswer.id.replace('q', '').replace('ptionA', '').replace('ptionB', '').replace('ptionC', '');
-        answers[questionId] = selectedAnswer.value;
-    
+        const radioButtonLabel = form.querySelector(`label[for="${selectedAnswer.id}"]`).innerText;
+        answers[questionId] = radioButtonLabel;
+
         // Reapply the selected state for the saved answer
         const radioButtons = form.querySelectorAll('input[name="q2Answer"]');
         radioButtons.forEach(radioButton => {
@@ -133,7 +140,60 @@
         });
       }
     }
-  
+
+      async function calculateScore() {
+      let score = 0;
+      const urlParams = new URLSearchParams(window.location.search);
+      const quizId = urlParams.get('quizId');
+    
+      // Fetch the correct answers for the quiz from the backend
+      return fetch(`${host}/quizzes/${quizId}`)
+        .then(response => response.json())
+        .then(quiz => {
+          // Store the correct answers in an object
+          quiz.questions.forEach(question => {
+            correctAnswers[question.id] = question.answer;
+          });
+
+          // Iterate through each question in the quiz
+          quiz.questionIds.forEach(questionId => {
+            // Compare the user's answer to the correct answer
+            if (answers[questionId] === correctAnswers[questionId]) {
+              score++;
+            }
+          });
+    
+          // Return the score
+          return score;
+        })
+        .catch(error => {
+          console.error("Error fetching quiz data:", error);
+          return 0; // Return 0 if an error occurs
+        });
+    }
+
+    function clearQuiz() {
+      document.getElementById("questionCard").innerHTML = "";
+      document.getElementById("prevButton").style.display = "none";
+      document.getElementById("nextButton").style.display = "none";
+      document.getElementById("submitButton").style.display = "none";
+    }
+    
+    async function displayScore(score) {
+      let response = await fetch(host + "/quizzes/" + quizId);
+      let quiz = await response.json();
+      questions = await getAllQuestions(); 
+      
+      console.log(quiz.questionIds.length);
+      const totalScore = quiz.questionIds.length;
+      const scoreDisplay = document.createElement("h2");
+      scoreDisplay.id = "scoreDisplay";
+      scoreDisplay.innerHTML = `Your score is: ${score} out of ${totalScore}`;
+      document.body.appendChild(scoreDisplay);
+    }
+   
+
+   
   </script>
 </body>
 </html>
