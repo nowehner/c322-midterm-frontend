@@ -3,9 +3,137 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>Quiz</title>
+  <link rel="stylesheet" href="general.css">
+  <link rel="stylesheet" href="cards.css">
+  <link rel="stylesheet" href="quiz.css">
 </head>
 <body>
+ 
+
+  <div class="question">
+    <div id="questionCard" class="cards"></div>
+    <button id="prevButton" disabled>Previous</button>
+    <button id="nextButton">Next</button>
+    <button id="submitButton" style="display: none;">Submit Quiz</button>
+  </div>
+
+  <script>
+   
+    let host = "http://localhost:8080";
+    let questions = [];
+    let currentQuestionIndex = 0;
+    let quizQuestions = [];
+    let quizId;
+    let answers = {};
+
   
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      quizId = urlParams.get('quizId'); 
+      displayQuestion(quizId); 
+    });
+
+    async function getAllQuestions() {
+      let response = await fetch(host + "/questions");
+      let result = await response.json();
+      return result;
+    }
+
+    async function getAllQuizzes() {
+      let response = await fetch(host + "/quizzes");
+      let result = await response.json();
+      return result;
+    }
+
+    async function displayQuestion(quizId) {
+      let response = await fetch(host + "/quizzes/" + quizId);
+      let quiz = await response.json();
+      questions = await getAllQuestions(); 
+      quizQuestions = quiz.questionIds;
+
+      if (questions.length === 0) {
+        questions = await getAllQuestions();
+      }
+
+      if (quizQuestions.length === 0) {
+        let quizzes = await getAllQuizzes();
+        quizQuestions = quizzes[currentQuestionIndex].questionIds;
+      }
+
+      let questionCardDiv = document.getElementById("questionCard");
+      questionCardDiv.innerHTML = "";
+
+      let currentQuestion = questions.find(question => question.id === quizQuestions[currentQuestionIndex]);
+
+      let div = document.createElement("div");
+      div.className = "card";
+
+      let innerHtml = `
+        <img src="http://localhost:8080/questions/${currentQuestion.id}/image" alt="question" style="width:100%">
+        <div class="container">
+          <h4><b>${currentQuestion.id}</b></h4> 
+          <p>${currentQuestion.description}</p>
+          <form id = "questionForm">
+            <input type="radio" id="q${currentQuestion.id}ptionA" name="q2Answer" value="A">
+            <label for="q${currentQuestion.id}ptionA">${currentQuestion.choices[0]}</label><br>
+
+            <input type="radio" id="q${currentQuestion.id}ptionB" name="q2Answer" value="B">
+            <label for="q${currentQuestion.id}ptionB">${currentQuestion.choices[1]}</label><br>
+
+            <input type="radio" id="q${currentQuestion.id}ptionC" name="q2Answer" value="C">
+            <label for="q${currentQuestion.id}ptionC">${currentQuestion.choices[2]}</label><br>       
+          </form> 
+        </div>
+      `;
+      div.innerHTML = innerHtml;
+      questionCardDiv.appendChild(div);
+
+      updateButtonVisibility();
+    }
+
+    function updateButtonVisibility() {
+      let prevButton = document.getElementById("prevButton");
+      let nextButton = document.getElementById("nextButton");
+      let submitButton = document.getElementById("submitButton");
+
+      prevButton.disabled = currentQuestionIndex === 0;
+      nextButton.style.display = currentQuestionIndex < quizQuestions.length - 1 ? "block" : "none";
+      submitButton.style.display = currentQuestionIndex === quizQuestions.length - 1 ? "block" : "none";
+    }
+
+    document.getElementById("prevButton").addEventListener("click", function() {
+      saveAnswer();
+      currentQuestionIndex--;
+      displayQuestion(quizId);
+    });
+
+    document.getElementById("nextButton").addEventListener("click", function() {
+      saveAnswer();
+      currentQuestionIndex++;
+      displayQuestion(quizId);
+    });
+
+    document.getElementById("submitButton").addEventListener("click", function() {
+      console.log("Quiz submitted!");
+    });
+
+    function saveAnswer() {
+      const form = document.getElementById('questionForm');
+      const selectedAnswer = form.querySelector('input[name="q2Answer"]:checked');
+      if (selectedAnswer) {
+        const questionId = selectedAnswer.id.replace('q', '').replace('ptionA', '').replace('ptionB', '').replace('ptionC', '');
+        answers[questionId] = selectedAnswer.value;
+    
+        // Reapply the selected state for the saved answer
+        const radioButtons = form.querySelectorAll('input[name="q2Answer"]');
+        radioButtons.forEach(radioButton => {
+          radioButton.checked = radioButton.id === selectedAnswer.id;
+        });
+      }
+    }
+  
+  </script>
 </body>
 </html>
